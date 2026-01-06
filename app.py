@@ -11,7 +11,9 @@ from lime import lime_tabular
 # ===============================
 # Load Dataset
 # ===============================
-zip_path = r"C:\Users\geeta\Downloads\dataset.csv.zip"
+zip_path = "dataset.csv.zip"
+
+
 try:
     df = pd.read_csv(zip_path, compression='zip')
     st.success("Dataset loaded successfully!")
