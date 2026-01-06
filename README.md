@@ -1,152 +1,129 @@
 
+# Music Popularity Predictor 🎵
 
-# 🎵 Music Popularity Prediction App
+## Table of Contents
 
-A **Machine Learning–powered Streamlit web application** that predicts the **popularity class of a song** (Low, Medium, High) using Spotify audio features.
-The app also provides **global model evaluation** and **local explainability using LIME**, making predictions transparent and interpretable.
-
----
-
-## 🚀 Live Demo
-
-🔗 **App Link:** *(add your Streamlit Cloud URL here once deployed)*
-
----
-
-## 📌 Features
-
-### 🔍 Data Overview
-
-* Displays a sample of the Spotify dataset
-* Uses real audio features such as:
-
-  * Danceability
-  * Energy
-  * Loudness
-  * Tempo
-  * Acousticness
-  * Valence
-  * Speechiness
-  * Liveness
+1. [Project Overview](#project-overview)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [Project Structure](#project-structure)
+6. [Machine Learning](#machine-learning)
+7. [Model Interpretation](#model-interpretation)
+8. [Future Improvements](#future-improvements)
+9. [License](#license)
 
 ---
 
-### 📊 Global Model Performance
+## Project Overview
 
-* **Confusion Matrix** (normalized)
-* **Feature Importance** from Random Forest
-* **Classification Report**
-
-  * Precision
-  * Recall
-  * F1-score
-  * Accuracy
+**Music Popularity Predictor** is a Python-based machine learning project designed to **predict the popularity of songs** based on various features like acoustic properties, tempo, duration, and more.
+The project includes data processing, model training, evaluation, and interpretation.
 
 ---
 
-### 🎯 Local Prediction & Explainability
+## Features
 
-* Interactive sliders for audio features
-* Predicts:
-
-  * **Popularity Class**
-  * **Prediction Confidence**
-* **LIME (Local Interpretable Model-agnostic Explanations)** to explain individual predictions visually
-
----
-
-## 🧠 Machine Learning Model
-
-* **Algorithm:** Random Forest Classifier
-* **Target Variable:** Popularity Class
-
-  * Low Popularity (0–33)
-  * Medium Popularity (34–66)
-  * High Popularity (67–100)
-* **Train/Test Split:** 80% / 20%
+* Load and preprocess song dataset.
+* Train a **Random Forest** (or other ML) model to predict song popularity.
+* Evaluate model performance using metrics like **RMSE, R², and MAE**.
+* Interpret model predictions using **LIME**.
+* Optionally deploy prediction interface using **Streamlit**.
 
 ---
 
-## 🛠️ Tech Stack
+## Installation
 
-* **Frontend:** Streamlit
-* **Backend / ML:** Scikit-learn
-* **Data Handling:** Pandas, NumPy
-* **Visualization:** Matplotlib, Seaborn
-* **Explainability:** LIME
-* **Model Persistence:** Joblib
-
----
-
-
-
----
-
-## ⚙️ Installation & Local Run
-
-### 1️⃣ Clone the repository
+1. Clone or download the project:
 
 ```bash
-git clone https://github.com/your-username/music-popularity-streamlit.git
-cd music-popularity-streamlit
+git clone <your-repo-link>
+cd music-popularity-predictor
 ```
 
-### 2️⃣ Install dependencies
+2. Create a virtual environment (Windows PowerShell):
 
-```bash
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+3. Upgrade pip:
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+4. Install dependencies:
+
+```powershell
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Run the app
+5. (Optional) Launch Jupyter Notebook:
 
-```bash
+```powershell
+jupyter notebook
+```
+
+---
+
+## Usage
+
+1. Open `notebook.ipynb` in Jupyter.
+
+2. Follow the **step-by-step cells** to:
+
+   * Load dataset
+   * Train model
+   * Make predictions
+   * Evaluate model
+   * Interpret results
+
+3. (Optional) Run Streamlit app:
+
+```powershell
 streamlit run app.py
 ```
 
 ---
 
-## 📦 Requirements
+## Project Structure
 
-```txt
-streamlit==1.28.1
-scikit-learn==1.3.0
-pandas==2.1.1
-numpy==1.24.3
-joblib==1.3.2
-lime==0.2.0.1
-matplotlib==3.8.0
-seaborn==0.12.2
+```
+music-popularity-predictor/
+│
+├─ .venv/                  # Python virtual environment
+├─ data/                   # Place your dataset here (e.g., songs.csv)
+├─ notebook.ipynb          # Main Jupyter Notebook
+├─ app.py                  # Optional Streamlit app
+├─ requirements.txt        # Dependencies
+└─ README.md               # Project documentation
 ```
 
 ---
 
-## 🌐 Deployment
+## Machine Learning
 
-The app is deployed using **Streamlit Community Cloud**:
+* **Algorithm:** Random Forest Regressor (default)
+* **Input Features:** Acoustic features, tempo, duration, etc.
+* **Target:** Song popularity score (numerical)
 
-1. Push project to GitHub
-2. Connect repository on Streamlit Cloud
-3. Set `app.py` as the main file
-4. Deploy 🚀
+**Evaluation Metrics:**
 
----
-
-## 📈 Future Enhancements
-
-* Regression-based popularity prediction
-* Spotify API integration for real-time song input
-* User authentication
-* Downloadable prediction reports
-* Model comparison dashboard
+* RMSE (Root Mean Squared Error)
+* R² (Coefficient of Determination)
+* MAE (Mean Absolute Error)
 
 ---
 
-## 👩‍💻 Author
 
-**Geetanjali Saini**
-🎓 Engineering Student | Machine Learning & Web Development
-📌 Built as a **portfolio-ready applied ML project**
+## Future Improvements
+
+* Add more **advanced models** (XGBoost, LightGBM).
+* Integrate **hyperparameter tuning**.
+* Deploy **web-based prediction app** using Streamlit with file upload.
+* Include **real-time data scraping** for new songs.
 
 ---
-
 
