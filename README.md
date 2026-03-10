@@ -1,8 +1,4 @@
-Got it 👍
-You want this content **added as your project README**, and the **Streamlit app link included**.
 
-Below is a **clean, ready-to-paste `README.md`** with your **live app link properly integrated**.
-You can copy this directly into your GitHub `README.md`.
 
 ---
 
