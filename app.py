@@ -13,25 +13,31 @@ from lime import lime_tabular
 # ===============================
 zip_path = "dataset.csv.zip"
 
+@st.cache_data
+def load_data(path):
+    try:
+        data = pd.read_csv(path, compression='zip')
+        return data, True
+    except Exception:
+        np.random.seed(42)
+        data = pd.DataFrame({
+            'danceability': np.random.rand(1000),
+            'energy': np.random.rand(1000),
+            'loudness': np.random.rand(1000) * -60,
+            'tempo': np.random.rand(1000) * 200,
+            'acousticness': np.random.rand(1000),
+            'valence': np.random.rand(1000),
+            'speechiness': np.random.rand(1000),
+            'liveness': np.random.rand(1000),
+            'popularity': np.random.randint(0, 101, 1000)
+        })
+        return data, False
 
-try:
-    df = pd.read_csv(zip_path, compression='zip')
+df, loaded_ok = load_data(zip_path)
+if loaded_ok:
     st.success("Dataset loaded successfully!")
-except Exception as e:
-    st.warning(f"Failed to load dataset: {e}. Using synthetic fallback data.")
-    np.random.seed(42)
-    df = pd.DataFrame({
-        'danceability': np.random.rand(1000),
-        'energy': np.random.rand(1000),
-        'loudness': np.random.rand(1000) * -60,
-        'tempo': np.random.rand(1000) * 200,
-        'acousticness': np.random.rand(1000),
-        'valence': np.random.rand(1000),
-        'speechiness': np.random.rand(1000),
-        'liveness': np.random.rand(1000),
-        'popularity': np.random.randint(0, 101, 1000)
-    })
-
+else:
+    st.warning("Failed to load dataset. Using synthetic fallback data.")
 # ===============================
 # Prepare Data
 # ===============================
@@ -69,7 +75,18 @@ accuracy = accuracy_score(y_test, y_test_preds)
 st.set_page_config(page_title="Music Popularity Predictor", layout="wide")
 st.title("🎵 Music Popularity Predictor")
 st.markdown("Predict the **popularity class** of a song based on its audio features.")
+@st.cache_resource
+def get_explainer(training_values, feature_names, class_names):
+    return lime_tabular.LimeTabularExplainer(
+        training_data=training_values,
+        mode="classification",
+        feature_names=feature_names,
+        class_names=class_names,
+        discretize_continuous=True,
+        random_state=42
+    )
 
+explainer = get_explainer(X_train.values, features, labels)
 tab1, tab2, tab3 = st.tabs(["📋 Data", "📊 Global Performance", "🧩 Local Performance"])
 
 # -------------------------------
@@ -125,6 +142,7 @@ with tab2:
 # Tab 3: Local Prediction & LIME
 # -------------------------------
 with tab3:
+    
     st.header("Predict a Song's Popularity")
     sliders = []
     col1, col2 = st.columns(2)
@@ -155,14 +173,6 @@ with tab3:
         # LIME Explanation
         st.markdown("### LIME Feature Importance")
         try:
-            explainer = lime_tabular.LimeTabularExplainer(
-                training_data=X_train.values,
-                mode="classification",
-                feature_names=features,
-                class_names=labels,
-                discretize_continuous=True,
-                random_state=42
-            )
             explanation = explainer.explain_instance(
                 data_row=np.array(sliders),
                 predict_fn=rf_classif.predict_proba,
