@@ -6,7 +6,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from lime import lime_tabular
+import tempfile
 from recommender import get_similar_songs, get_top_tracks
+from audio_features import extract_features
 
 # ===============================
 # Load Dataset
@@ -167,71 +169,95 @@ with tab3:
     st.header("Predict a Track's Popularity")
 
     with st.sidebar:
-        st.markdown("## 🎛️ Track Features")
-        st.caption("Adjust these to match your song")
+        st.markdown("## 🎛️ Track Input")
+        input_mode = st.radio("Choose input method:", ["Manual sliders", "Upload audio file"])
+
         sliders = []
-        for feature in features:
-            sliders.append(
-                st.slider(
-                    label=feature,
-                    min_value=float(df[feature].min()),
-                    max_value=float(df[feature].max()),
-                    value=float(df[feature].mean())
+
+        if input_mode == "Manual sliders":
+            st.caption("Adjust these to match your song")
+            for feature in features:
+                sliders.append(
+                    st.slider(
+                        label=feature,
+                        min_value=float(df[feature].min()),
+                        max_value=float(df[feature].max()),
+                        value=float(df[feature].mean())
+                    )
                 )
-            )
+        else:
+            st.caption("Upload a short MP3 or WAV clip")
+            uploaded_file = st.file_uploader("Audio file", type=["mp3", "wav"])
+            if uploaded_file is not None:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+                    tmp.write(uploaded_file.read())
+                    tmp_path = tmp.name
+
+                with st.spinner("Analyzing audio..."):
+                    extracted = extract_features(tmp_path)
+
+                st.markdown("**Extracted features:**")
+                st.json(extracted)
+                sliders = [extracted[feature] for feature in features]
+            else:
+                st.info("Upload a file to get a prediction.")
+
         st.divider()
         selected_genre = st.selectbox("Genre for recommendations:", sorted(df['track_genre'].unique()))
 
     col2 = st.container()
     with col2:
-        prediction = rf_classif.predict([sliders])[0]
-        probs = rf_classif.predict_proba([sliders])[0]
-        probability = probs[prediction]
+        if sliders:
+            prediction = rf_classif.predict([sliders])[0]
+            probs = rf_classif.predict_proba([sliders])[0]
+            probability = probs[prediction]
 
-        color_map = {0: "#EF4444", 1: "#F59E0B", 2: "#10B981"}  # red, amber, green
-        with st.container(border=True):
-            pcol1, pcol2 = st.columns([2, 1])
-            with pcol1:
-                st.markdown("#### Predicted Class")
-                st.markdown(
-                    f"<h2 style='color:{color_map[prediction]}; margin-top:-10px;'>{labels[prediction]}</h2>",
-                    unsafe_allow_html=True
+            color_map = {0: "#EF4444", 1: "#F59E0B", 2: "#10B981"}  # red, amber, green
+            with st.container(border=True):
+                pcol1, pcol2 = st.columns([2, 1])
+                with pcol1:
+                    st.markdown("#### Predicted Class")
+                    st.markdown(
+                        f"<h2 style='color:{color_map[prediction]}; margin-top:-10px;'>{labels[prediction]}</h2>",
+                        unsafe_allow_html=True
+                    )
+                with pcol2:
+                    st.metric(label="Confidence", value=f"{probability*100:.1f}%")
+
+            # LIME Explanation
+            st.divider()
+            st.markdown("#### 🔍 Why This Prediction")
+            try:
+                explanation = explainer.explain_instance(
+                    data_row=np.array(sliders),
+                    predict_fn=rf_classif.predict_proba,
+                    num_features=len(features)
                 )
-            with pcol2:
-                st.metric(label="Confidence", value=f"{probability*100:.1f}%")
 
-        # LIME Explanation
-        st.divider()
-        st.markdown("#### 🔍 Why This Prediction")
-        try:
-            explanation = explainer.explain_instance(
-                data_row=np.array(sliders),
-                predict_fn=rf_classif.predict_proba,
-                num_features=len(features)
-            )
+                # Ensure the predicted label exists in explanation
+                if prediction not in explanation.local_exp:
+                    prediction_for_lime = list(explanation.local_exp.keys())[0]
+                else:
+                    prediction_for_lime = prediction
 
-            # Ensure the predicted label exists in explanation
-            if prediction not in explanation.local_exp:
-                prediction_for_lime = list(explanation.local_exp.keys())[0]
+                fig = explanation.as_pyplot_figure(label=prediction_for_lime)
+                st.pyplot(fig, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"LIME explanation failed: {e}")
+
+            st.divider()
+            st.markdown("#### 🎧 Similar Tracks")
+            input_features_dict = dict(zip(features, sliders))
+            similar = get_similar_songs(input_features_dict, df, features, genre=selected_genre, top_n=5)
+            if not similar.empty:
+                st.dataframe(similar[['track_name', 'artists', 'popularity']], use_container_width=True)
             else:
-                prediction_for_lime = prediction
+                st.info(f"No songs found in genre '{selected_genre}'.")
 
-            fig = explanation.as_pyplot_figure(label=prediction_for_lime)
-            st.pyplot(fig, use_container_width=True)
-
-        except Exception as e:
-            st.error(f"LIME explanation failed: {e}")
-
-        st.divider()
-        st.markdown("#### 🎧 Similar Tracks")
-        input_features_dict = dict(zip(features, sliders))
-        similar = get_similar_songs(input_features_dict, df, features, genre=selected_genre, top_n=5)
-        if not similar.empty:
-            st.dataframe(similar[['track_name', 'artists', 'popularity']], use_container_width=True)
+            st.divider()
+            st.markdown(f"####  Trending in {selected_genre}")
+            top_tracks = get_top_tracks(df, genre=selected_genre, top_n=5)
+            st.dataframe(top_tracks[['track_name', 'artists', 'popularity']], use_container_width=True)
         else:
-            st.info(f"No songs found in genre '{selected_genre}'.")
-
-        st.divider()
-        st.markdown(f"#### 🔥 Trending in {selected_genre}")
-        top_tracks = get_top_tracks(df, genre=selected_genre, top_n=5)
-        st.dataframe(top_tracks[['track_name', 'artists', 'popularity']], use_container_width=True)
+            st.info("👈 Choose an input method in the sidebar to get a prediction.")
