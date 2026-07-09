@@ -1,12 +1,12 @@
 import streamlit as st
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, classification_report, ConfusionMatrixDisplay
 from joblib import load
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from lime import lime_tabular
+from recommender import get_similar_songs, get_top_tracks
 
 # ===============================
 # Load Dataset
@@ -38,10 +38,11 @@ if loaded_ok:
     st.success("Dataset loaded successfully!")
 else:
     st.warning("Failed to load dataset. Using synthetic fallback data.")
+
 # ===============================
 # Prepare Data
 # ===============================
-features = ['danceability', 'energy', 'loudness', 'tempo', 
+features = ['danceability', 'energy', 'loudness', 'tempo',
             'acousticness', 'valence', 'speechiness', 'liveness']
 features = [f for f in features if f in df.columns]
 
@@ -72,9 +73,30 @@ accuracy = accuracy_score(y_test, y_test_preds)
 # ===============================
 # Streamlit App Layout
 # ===============================
-st.set_page_config(page_title="Music Popularity Predictor", layout="wide")
-st.title("🎵 Music Popularity Predictor")
-st.markdown("Predict the **popularity class** of a song based on its audio features.")
+st.set_page_config(page_title="Track Intelligence Dashboard", page_icon="🎵", layout="wide")
+
+st.markdown("""
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+    .sub-header {
+        color: #9CA3AF;
+        font-size: 1.05rem;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<p class="main-header">🎵 Track Intelligence Dashboard</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Predict popularity potential, understand what drives it, and discover similar tracks — powered by Random Forest + LIME explainability.</p>', unsafe_allow_html=True)
+
 @st.cache_resource
 def get_explainer(training_values, feature_names, class_names):
     return lime_tabular.LimeTabularExplainer(
@@ -107,14 +129,14 @@ with tab2:
 
     # Confusion Matrix
     with col1:
-        conf_fig = plt.figure(figsize=(6,6))
+        conf_fig = plt.figure(figsize=(6, 6))
         ax = conf_fig.add_subplot(111)
         ConfusionMatrixDisplay.from_predictions(
-            y_test, 
-            y_test_preds, 
-            normalize='true', 
-            display_labels=labels, 
-            ax=ax, 
+            y_test,
+            y_test_preds,
+            normalize='true',
+            display_labels=labels,
+            ax=ax,
             cmap='Blues'
         )
         ax.set_title("Normalized Confusion Matrix")
@@ -122,7 +144,7 @@ with tab2:
 
     # Feature Importances
     with col2:
-        feat_imp_fig = plt.figure(figsize=(6,6))
+        feat_imp_fig = plt.figure(figsize=(6, 6))
         ax = feat_imp_fig.add_subplot(111)
         importances = rf_classif.feature_importances_
         indices = np.argsort(importances)
@@ -142,14 +164,12 @@ with tab2:
 # Tab 3: Local Prediction & LIME
 # -------------------------------
 with tab3:
-    
-    st.header("Predict a Song's Popularity")
-    sliders = []
-    col1, col2 = st.columns(2)
+    st.header("Predict a Track's Popularity")
 
-    # Feature sliders
-    with col1:
-        st.markdown("### Adjust Song Features")
+    with st.sidebar:
+        st.markdown("## 🎛️ Track Features")
+        st.caption("Adjust these to match your song")
+        sliders = []
         for feature in features:
             sliders.append(
                 st.slider(
@@ -159,19 +179,30 @@ with tab3:
                     value=float(df[feature].mean())
                 )
             )
+        st.divider()
+        selected_genre = st.selectbox("Genre for recommendations:", sorted(df['track_genre'].unique()))
 
-    # Prediction & LIME
+    col2 = st.container()
     with col2:
-        st.markdown("### Prediction & Confidence")
         prediction = rf_classif.predict([sliders])[0]
         probs = rf_classif.predict_proba([sliders])[0]
         probability = probs[prediction]
 
-        st.markdown(f"**Predicted Popularity Class:** <span style='color:tomato'>{labels[prediction]}</span>", unsafe_allow_html=True)
-        st.metric(label="Model Confidence", value=f"{probability*100:.2f} %")
+        color_map = {0: "#EF4444", 1: "#F59E0B", 2: "#10B981"}  # red, amber, green
+        with st.container(border=True):
+            pcol1, pcol2 = st.columns([2, 1])
+            with pcol1:
+                st.markdown("#### Predicted Class")
+                st.markdown(
+                    f"<h2 style='color:{color_map[prediction]}; margin-top:-10px;'>{labels[prediction]}</h2>",
+                    unsafe_allow_html=True
+                )
+            with pcol2:
+                st.metric(label="Confidence", value=f"{probability*100:.1f}%")
 
         # LIME Explanation
-        st.markdown("### LIME Feature Importance")
+        st.divider()
+        st.markdown("#### 🔍 Why This Prediction")
         try:
             explanation = explainer.explain_instance(
                 data_row=np.array(sliders),
@@ -190,3 +221,17 @@ with tab3:
 
         except Exception as e:
             st.error(f"LIME explanation failed: {e}")
+
+        st.divider()
+        st.markdown("#### 🎧 Similar Tracks")
+        input_features_dict = dict(zip(features, sliders))
+        similar = get_similar_songs(input_features_dict, df, features, genre=selected_genre, top_n=5)
+        if not similar.empty:
+            st.dataframe(similar[['track_name', 'artists', 'popularity']], use_container_width=True)
+        else:
+            st.info(f"No songs found in genre '{selected_genre}'.")
+
+        st.divider()
+        st.markdown(f"#### 🔥 Trending in {selected_genre}")
+        top_tracks = get_top_tracks(df, genre=selected_genre, top_n=5)
+        st.dataframe(top_tracks[['track_name', 'artists', 'popularity']], use_container_width=True)
